@@ -15,6 +15,11 @@ jobs:
 
     env:
       PYTHONUNBUFFERED: "1"
+      TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
+      CHAT_ID: ${{ secrets.CHAT_ID }}
+      LOG_LEVEL: ${{ secrets.LOG_LEVEL }}
+      LOCATIONS: ${{ secrets.LOCATIONS }}
+      KEYWORDS: ${{ secrets.KEYWORDS }}
 
     steps:
       # Checkout repository
@@ -46,7 +51,7 @@ jobs:
           chrome --version
           chromedriver --version
 
-      # Restore state cache
+      # Restore cached state
       - name: Restore state cache
         uses: actions/cache@v4
         with:
@@ -61,16 +66,15 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
-      # Run crawler with retries
+      # Run crawler
       - name: Run crawler
         timeout-minutes: 10
-        env:
-          TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
-          CHAT_ID: ${{ secrets.CHAT_ID }}
         shell: bash
         run: |
           set -o pipefail
           mkdir -p state
+
+          exit_code=1
 
           for attempt in 1 2 3; do
             echo "========== Attempt ${attempt}/3 =========="
@@ -91,22 +95,23 @@ jobs:
 
           exit ${exit_code}
 
-      # Save updated state
+      # Save updated state cache
       - name: Save state cache
-        uses: actions/cache/save@v4
         if: always()
+        uses: actions/cache/save@v4
         with:
           path: state
           key: job-alert-state-${{ github.ref_name }}
 
-      # Commit updated state (if changed)
+      # Commit updated state
       - name: Commit state
         if: always()
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
 
-          git add state || true
+          # Force add ignored state files if needed
+          git add -f state || true
 
           if git diff --cached --quiet; then
             echo "No state changes."
@@ -114,5 +119,7 @@ jobs:
           fi
 
           git commit -m "Update crawler state"
-          git pull --rebase origin ${{ github.ref_name }}
+
+          git pull --rebase origin "${{ github.ref_name }}"
+
           git push
