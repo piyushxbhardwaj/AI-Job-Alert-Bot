@@ -1,0 +1,57 @@
+name: Job Alert Bot
+
+on:
+  schedule:
+    - cron: "*/15 * * * *"
+  workflow_dispatch:
+
+jobs:
+  crawl-jobs:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    env:
+      PYTHONUNBUFFERED: "1"
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: "pip"
+
+      - name: Set up Chrome
+        uses: browser-actions/setup-chrome@v1
+
+      - name: Set up ChromeDriver
+        uses: browser-actions/setup-chromedriver@v1
+
+      - name: Restore state cache
+        uses: actions/cache@v4
+        with:
+          path: state
+          key: job-alert-state-${{ github.ref_name }}
+          restore-keys: |
+            job-alert-state-
+
+      - name: Install dependencies
+        run: python -m pip install --upgrade pip && pip install -r requirements.txt
+
+      - name: Run crawler with retries
+        shell: bash
+        run: |
+          set -o pipefail
+          mkdir -p state
+          for attempt in 1 2 3; do
+            echo "Running crawl attempt ${attempt}/3"
+            if python main.py 2>&1 | tee "state/run-${attempt}.log"; then
+              exit 0
+            fi
+            if [[ ${attempt} -lt 3 ]]; then
+              echo "Retrying after failure..."
+            fi
+          done
+          exit 1

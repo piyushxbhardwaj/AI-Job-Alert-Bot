@@ -1,0 +1,1 @@
+"""Streamlit dashboard for AI-Job-Alert-Bot."""
