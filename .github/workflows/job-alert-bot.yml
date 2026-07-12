@@ -2,8 +2,11 @@ name: Job Alert Bot
 
 on:
   schedule:
-    - cron: "*/15 * * * *"
+    - cron: "*/5 * * * *"
   workflow_dispatch:
+
+permissions:
+  contents: write
 
 jobs:
   crawl-jobs:
@@ -14,21 +17,36 @@ jobs:
       PYTHONUNBUFFERED: "1"
 
     steps:
+      # Checkout repository
       - name: Checkout repository
         uses: actions/checkout@v4
 
+      # Setup Python
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: "3.11"
           cache: "pip"
 
-      - name: Set up Chrome
-        uses: browser-actions/setup-chrome@v1
+      # Install Chrome + ChromeDriver
+      - name: Setup Chrome
+        uses: browser-actions/setup-chrome@v2
+        with:
+          install-chromedriver: true
 
-      - name: Set up ChromeDriver
-        uses: browser-actions/setup-chromedriver@v1
+      # Export Chrome paths
+      - name: Export Chrome paths
+        run: |
+          echo "CHROME_BIN=$(which chrome)" >> $GITHUB_ENV
+          echo "CHROMEDRIVER_BIN=$(which chromedriver)" >> $GITHUB_ENV
 
+      # Verify installation
+      - name: Verify Chrome
+        run: |
+          chrome --version
+          chromedriver --version
+
+      # Restore state cache
       - name: Restore state cache
         uses: actions/cache@v4
         with:
@@ -37,21 +55,64 @@ jobs:
           restore-keys: |
             job-alert-state-
 
+      # Install dependencies
       - name: Install dependencies
-        run: python -m pip install --upgrade pip && pip install -r requirements.txt
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
 
-      - name: Run crawler with retries
+      # Run crawler with retries
+      - name: Run crawler
+        timeout-minutes: 10
+        env:
+          TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
+          CHAT_ID: ${{ secrets.CHAT_ID }}
         shell: bash
         run: |
           set -o pipefail
           mkdir -p state
+
           for attempt in 1 2 3; do
-            echo "Running crawl attempt ${attempt}/3"
+            echo "========== Attempt ${attempt}/3 =========="
+
             if python main.py 2>&1 | tee "state/run-${attempt}.log"; then
-              exit 0
+              echo "Crawler completed successfully."
+              exit_code=0
+              break
             fi
+
+            exit_code=$?
+
             if [[ ${attempt} -lt 3 ]]; then
-              echo "Retrying after failure..."
+              echo "Retrying in 15 seconds..."
+              sleep 15
             fi
           done
-          exit 1
+
+          exit ${exit_code}
+
+      # Save updated state
+      - name: Save state cache
+        uses: actions/cache/save@v4
+        if: always()
+        with:
+          path: state
+          key: job-alert-state-${{ github.ref_name }}
+
+      # Commit updated state (if changed)
+      - name: Commit state
+        if: always()
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          git add state || true
+
+          if git diff --cached --quiet; then
+            echo "No state changes."
+            exit 0
+          fi
+
+          git commit -m "Update crawler state"
+          git pull --rebase origin ${{ github.ref_name }}
+          git push
