@@ -66,6 +66,28 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
+      # DEBUG - Check environment variables
+      - name: Debug environment
+        run: |
+          echo "===== ENVIRONMENT CHECK ====="
+          if [ -z "$LOG_LEVEL" ]; then
+            echo "❌ LOG_LEVEL is EMPTY"
+          else
+            echo "✅ LOG_LEVEL = $LOG_LEVEL"
+          fi
+
+          if [ -z "$LOCATIONS" ]; then
+            echo "❌ LOCATIONS is EMPTY"
+          else
+            echo "✅ LOCATIONS = $LOCATIONS"
+          fi
+
+          if [ -z "$KEYWORDS" ]; then
+            echo "❌ KEYWORDS is EMPTY"
+          else
+            echo "✅ KEYWORDS = $KEYWORDS"
+          fi
+
       # Run crawler
       - name: Run crawler
         timeout-minutes: 10
@@ -110,7 +132,6 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
 
-          # Force add ignored state files if needed
           git add -f state || true
 
           if git diff --cached --quiet; then
