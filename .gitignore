@@ -3,8 +3,14 @@ __pycache__/
 .pytest_cache/
 .venv/
 .env
-state/
+
+# Ignore generated database and logs
 state/*.db
 state/*.sqlite3
 state/*.log
+
+# Keep source configuration
+!state/
+!state/sources.json
+
 .DS_Store
