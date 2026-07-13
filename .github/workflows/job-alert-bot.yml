@@ -70,24 +70,27 @@ jobs:
 
       - name: Debug state folder
         run: |
-          echo "===== STATE FOLDER ====="
+          echo "===== STATE DIRECTORY ====="
           ls -la state || true
 
-          echo "===== SOURCES.JSON ====="
+          echo ""
+          echo "===== SOURCES ====="
           if [ -f state/sources.json ]; then
             cat state/sources.json
           else
-            echo "sources.json NOT FOUND"
+            echo "❌ state/sources.json NOT FOUND"
           fi
 
       - name: Run crawler
         timeout-minutes: 10
         shell: bash
         run: |
-          set -o pipefail
+          set -e
           mkdir -p state
 
-          python main.py 2>&1 | tee state/run.log
+          echo "========== STARTING JOB BOT =========="
+
+          python main.py | tee state/run.log
 
       - name: Save state cache
         if: always()
