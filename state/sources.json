@@ -1,0 +1,31 @@
+[
+  {
+    "source": "greenhouse",
+    "board_token": "openai",
+    "company": "OpenAI"
+  },
+  {
+    "source": "greenhouse",
+    "board_token": "anthropic",
+    "company": "Anthropic"
+  },
+  {
+    "source": "greenhouse",
+    "board_token": "perplexityai",
+    "company": "Perplexity"
+  },
+  {
+    "source": "lever",
+    "company_slug": "scaleai",
+    "company": "Scale AI"
+  },
+  {
+    "source": "lever",
+    "company_slug": "huggingface",
+    "company": "Hugging Face"
+  },
+  {
+    "source": "yc",
+    "jobs_url": "https://www.ycombinator.com/jobs"
+  }
+]
