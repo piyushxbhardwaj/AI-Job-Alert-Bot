@@ -13,7 +13,7 @@ from crawler import BaseCrawler
 from database import alert_already_sent, initialize_database, insert_job, is_duplicate_job, record_alert
 from filters import JobFilter
 from notifier import TelegramNotifier
-from notifier.telegram import _escape_markdown, _sanitize_url
+from notifier.telegram import _escape_html
 from utils import load_resume_text, score_job, score_resume_match
 from utils import is_priority_company, load_priority_companies
 from sources import (
@@ -107,6 +107,7 @@ def _build_alert_message(job: Any) -> str:
         description=getattr(job, "description", ""),
         location=getattr(job, "location", "Remote"),
     )
+
     resume_text = getattr(job, "resume_text", "")
     resume_match = (
         score_resume_match(
@@ -118,24 +119,29 @@ def _build_alert_message(job: Any) -> str:
     )
 
     lines = [
-        "🚀 *New Opportunity*",
+        "🚀 <b>New Opportunity</b>",
         "",
-        f"🔥 *Match Score:* {scoring.match_score}%",
-        f"🏢 *Company:* {_escape_markdown(job.company)}",
-        f"💼 *Role:* {_escape_markdown(job.title)}",
-        f"📍 *Location:* {_escape_markdown(getattr(job, 'location', 'Remote'))}",
-        f"🌐 *Source:* {_escape_markdown(job.source)}",
-        f"🔗 *Apply:* [{_escape_markdown('Open posting')}]({_sanitize_url(job.url)})",
+        f"🔥 <b>Match Score:</b> {scoring.match_score}%",
+        f"🏢 <b>Company:</b> {_escape_html(job.company)}",
+        f"💼 <b>Role:</b> {_escape_html(job.title)}",
+        f"📍 <b>Location:</b> {_escape_html(getattr(job, 'location', 'Remote'))}",
+        f"🌐 <b>Source:</b> {_escape_html(job.source)}",
+        f'🔗 <b>Apply:</b> <a href="{job.url}">Open posting</a>',
     ]
 
     if scoring.reasons:
-        lines.extend(["", "*Reasons:"])
-        lines.extend([f"✓ {_escape_markdown(reason)}" for reason in scoring.reasons[:6]])
+        lines.extend(["", "<b>Reasons:</b>"])
+        lines.extend([f"✓ {_escape_html(reason)}" for reason in scoring.reasons[:6]])
 
     if resume_match and resume_match.resume_match_score is not None:
-        lines.extend(["", f"📄 *Resume Match:* {resume_match.resume_match_score}%"])
+        lines.extend(
+            ["", f"📄 <b>Resume Match:</b> {resume_match.resume_match_score}%"]
+        )
+
         if resume_match.missing_skills:
-            lines.append(f"*Missing:* {_escape_markdown(', '.join(resume_match.missing_skills))}")
+            lines.append(
+                f"<b>Missing:</b> {_escape_html(', '.join(resume_match.missing_skills))}"
+            )
 
     return "\n".join(lines)
 
